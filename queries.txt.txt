@@ -1,0 +1,52 @@
+
+
+-- 1.which film category is mostly rented
+
+SELECT c.name, COUNT(c.name) as rental_count
+FROM  category c, film_category fc, film f, inventory i, rental r
+WHERE c.category_id = fc.category_id 
+AND fc.film_id= f.film_id 
+AND f.film_id = i.film_id 
+AND i.inventory_id= r.inventory_id
+GROUP BY c.name
+ORDER BY rental_count DESC;
+
+-- 2.which film categories are mostly favoured by staff members residing within store cities?
+
+SELECT name, CASE WHEN city IS NULL THEN 'Other' ELSE city END city, rental_count
+FROM (
+SELECT c.name, ct.city, COUNT(c.name) as rental_count
+FROM category c
+FULL OUTER JOIN film_category fc ON c.category_id = fc.category_id
+FULL OUTER JOIN film f ON fc.film_id = f.film_id 
+FULL OUTER JOIN inventory i ON f.film_id = i.film_id 
+FULL OUTER JOIN rental r ON i.inventory_id= r.inventory_id
+FULL OUTER JOIN payment p ON r.rental_id = p.rental_id
+FULL OUTER JOIN staff s ON p.staff_id = s.staff_id
+FULL OUTER JOIN store st ON s.store_id = st.store_id
+FULL OUTER JOIN address ad ON st.address_id = ad.address_id
+FULL OUTER JOIN city ct ON ct.city_id = ad.city_id
+WHERE c.category_id IS NOT NULL AND r.rental_id IS NOT NULL
+GROUP BY c.name, ct.city
+ORDER BY rental_count DESC) a;
+
+-- 3. What is the average rental rate for film categories except Foreign films?
+
+SELECT DISTINCT name AS film_category,avg(rental_rate) OVER (PARTITION BY name) average_film_rental
+FROM film f ,film_category fc,category c
+WHERE f.film_id = fc.film_id
+	AND fc.category_id=c.category_id
+	AND name != 'Foreign';
+
+-- 4. How many actors are there in each film category? 
+
+WITH CTE AS (SELECT c.name categoryname, concat(first_name,' ', last_name) AS actor_name 
+FROM actor a 
+JOIN film_actor fa ON a.actor_id = fa.film_id 
+JOIN film f ON f.film_id= fa.film_id 
+JOIN film_category fc ON fc.film_id = f.film_id
+JOIN category c ON c.category_id = fc.category_id) 
+SELECT categoryname , COUNT(actor_name) AS actor_count
+from CTE
+group by categoryname
+order by actor_count;
